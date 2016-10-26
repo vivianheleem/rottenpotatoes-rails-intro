@@ -1,7 +1,7 @@
 class MoviesController < ApplicationController
 
   def movie_params
-    params.require(:movie).permit(:title, :rating, :description, :release_date)
+    params.require(:movie).permit(:title, :rating, :description, :release_date, :sorting_by)
   end
 
   def show
@@ -11,8 +11,32 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @movies = Movie.all
-  end
+redirect = false
+    redirect_options = {}
+    if params.has_key?('ratings')
+      session.delete(:ratings)
+      session[:ratings] = params[:ratings]
+    else
+      redirect = true if session.has_key?(:ratings)
+      redirect_options.store(:ratings, session[:ratings]) if session.has_key?(:ratings)
+    end
+    if params.has_key?('sorting_by')
+      session.delete(:sorting_by)
+      session[:sorting_by] = params[:sorting_by] 
+    end
+    flash.keep if redirect
+    redirect_to movies_path(redirect_options) if redirect
+
+    movie_ratings = Movie.get_ratings 
+    @all_ratings, selection = ApplicationHelper.get_selection(movie_ratings, session)
+    if session.has_key?(:sorting_by)
+      @css_class = ApplicationHelper.get_index_th_css_class(session)
+      @movies = Movie.where(rating: selection).order(session[:sorting_by])
+    else
+      @css_class = ApplicationHelper.get_index_th_css_class({})
+      @movies = Movie.where(rating: selection)
+    end
+    end
 
   def new
     # default: render 'new' template
